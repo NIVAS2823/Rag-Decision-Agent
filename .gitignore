@@ -1,0 +1,252 @@
+# ============================================================================
+# SENSITIVE DATA - NEVER COMMIT THESE
+# ============================================================================
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+secrets/
+credentials/
+
+# API Keys and Tokens
+*_API_KEY*
+*_TOKEN*
+*_SECRET*
+
+# ============================================================================
+# PYTHON
+# ============================================================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Flask/Django
+instance/
+.webassets-cache
+db.sqlite3
+db.sqlite3-journal
+
+# Scrapy
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# ============================================================================
+# NODE.JS / FRONTEND
+# ============================================================================
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+dist-ssr/
+*.local
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================================================================
+# DOCKER
+# ============================================================================
+docker-compose.override.yml
+
+# ============================================================================
+# DATA & MODELS
+# ============================================================================
+# Local data storage (development only)
+data/documents/*
+!data/documents/.gitkeep
+data/indexes/*
+!data/indexes/.gitkeep
+
+# Large model files
+*.bin
+*.pkl
+*.h5
+*.onnx
+*.pt
+*.pth
+*.safetensors
+
+# FAISS indexes
+*.index
+*.faiss
+
+# ============================================================================
+# LOGS
+# ============================================================================
+logs/
+*.log
+log/
+
+# ============================================================================
+# DATABASES
+# ============================================================================
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# MongoDB local data
+data/db/
+dump/
+
+# Redis
+dump.rdb
+
+# ============================================================================
+# IDE SPECIFIC
+# ============================================================================
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+.vim/
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ============================================================================
+# OPERATING SYSTEM
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ============================================================================
+# TESTING
+# ============================================================================
+.pytest_cache/
+.coverage
+htmlcov/
+test-results/
+coverage/
+
+# ============================================================================
+# TEMPORARY FILES
+# ============================================================================
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# ============================================================================
+# LANGSMITH / OBSERVABILITY
+# ============================================================================
+.langsmith/
+langsmith_cache/
+
+# ============================================================================
+# MISC
+# ============================================================================
+# Backup files
+*.backup
+*.old
+
+# Compressed files
+*.zip
+*.tar.gz
+*.rar
+
+# Large files that shouldn't be in Git
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.iso
+EOF

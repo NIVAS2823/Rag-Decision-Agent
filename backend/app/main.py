@@ -21,6 +21,8 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.api.routes import health
+from app.core.logging_config import setup_logging
+from app.api.dependencies.logging import RequestLoggingMiddleware
 
 # ============================================================================
 # APPLICATION LIFESPAN MANAGEMENT
@@ -50,6 +52,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # ========================================================================
     print("=" * 70)
     print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    setup_logging()
     print("=" * 70)
     
     # Log configuration
@@ -188,6 +191,8 @@ app.add_middleware(
     # This reduces the number of OPTIONS requests
     max_age=600,
 )
+
+app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(health.router,prefix="/api/v1",tags=["health"])
 # ============================================================================

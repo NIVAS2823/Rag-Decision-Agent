@@ -1,3 +1,4 @@
+
 """
 RAG Decision Intelligence Agent - Main Application
 ===================================================
@@ -7,6 +8,7 @@ This is the core of our backend application. It:
 - Initializes the FastAPI app
 - Configures application metadata
 - Manages application lifecycle (startup/shutdown)
+- Configures CORS for frontend communication
 - Will later integrate all API routes, middleware, and services
 """
 
@@ -14,10 +16,11 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-
+from app.api.routes import health
 
 # ============================================================================
 # APPLICATION LIFESPAN MANAGEMENT
@@ -54,6 +57,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     print(f"🐛 Debug Mode: {settings.DEBUG}")
     print(f"🌐 API Host: {settings.API_HOST}:{settings.API_PORT}")
     print(f"👷 Workers: {settings.API_WORKERS}")
+    
+    # Log CORS configuration
+    print(f"\n🔐 CORS Configuration:")
+    print(f"   Allowed Origins: {settings.CORS_ORIGINS}")
     
     # Log feature flags
     print("\n🚩 Feature Flags:")
@@ -107,36 +114,6 @@ app = FastAPI(
     title=settings.APP_NAME,
     description="""
     ## Enterprise-Grade RAG + Decision Intelligence Agent
-    
-    A production-ready AI system that combines:
-    - **Internal knowledge** (document ingestion & retrieval)
-    - **External intelligence** (real-time web search)
-    - **Multi-agent reasoning** (LangGraph orchestration)
-    
-    ### Key Features
-    - 🔍 **Hybrid RAG**: Vector search (FAISS) + Keyword search (BM25) + Re-ranking
-    - 🤖 **Multi-Agent System**: Specialized agents for planning, retrieval, decision-making
-    - ✅ **Fact Verification**: External tool-based validation (Tavily)
-    - 📊 **Confidence Scoring**: Quantified uncertainty for every decision
-    - 🔐 **Enterprise Security**: JWT authentication, role-based access control
-    - 📝 **Full Auditability**: Complete trace of every decision via LangSmith
-    
-    ### Architecture
-    - **Backend**: Python + FastAPI + LangGraph
-    - **AI**: LangChain + OpenAI/Anthropic
-    - **RAG**: FAISS + BM25 + Cross-encoders
-    - **Database**: MongoDB + Redis + FAISS
-    - **Storage**: Cloudflare R2
-    
-    ### Use Cases
-    - Strategic business decisions
-    - Compliance & legal review
-    - Investment analysis
-    - Product development prioritization
-    
-    ---
-    
-    **API Documentation**: Available at `/docs` (Swagger UI) and `/redoc` (ReDoc)
     """,
     version=settings.APP_VERSION,
     docs_url="/docs",
@@ -178,6 +155,42 @@ app = FastAPI(
 
 
 # ============================================================================
+# CORS MIDDLEWARE CONFIGURATION
+# ============================================================================
+
+app.add_middleware(
+    CORSMiddleware,
+    # Allowed origins (from environment configuration)
+    allow_origins=settings.CORS_ORIGINS,
+    
+    # Allow credentials (cookies, authorization headers)
+    # This is CRITICAL for JWT authentication
+    allow_credentials=True,
+    
+    # Allow all HTTP methods (GET, POST, PUT, DELETE, PATCH, OPTIONS, etc.)
+    allow_methods=["*"],
+    
+    # Allow all headers
+    # In production, you might want to restrict this to specific headers
+    allow_headers=["*"],
+    
+    # Expose these headers to the frontend
+    # Useful for custom headers like X-Request-ID, X-RateLimit-Remaining, etc.
+    expose_headers=[
+        "X-Request-ID",
+        "X-Process-Time",
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining",
+        "X-RateLimit-Reset",
+    ],
+    
+    # Cache preflight requests for 10 minutes (600 seconds)
+    # This reduces the number of OPTIONS requests
+    max_age=600,
+)
+
+app.include_router(health.router,prefix="/api/v1",tags=["health"])
+# ============================================================================
 # ROOT ENDPOINT
 # ============================================================================
 
@@ -203,6 +216,31 @@ async def root():
         "docs": "/docs",
         "redoc": "/redoc",
         "message": "Welcome to the RAG Decision Intelligence Agent API",
+    }
+
+
+# ============================================================================
+# CORS TEST ENDPOINT
+# ============================================================================
+
+@app.get(
+    "/cors-test",
+    summary="CORS test endpoint",
+    description="Test endpoint to verify CORS is configured correctly",
+    response_class=JSONResponse,
+    tags=["health"],
+)
+async def cors_test():
+    """
+    CORS Test Endpoint
+    
+    Returns a simple response to verify CORS headers are being sent.
+    Access this from a browser console on a different origin to test.
+    """
+    return {
+        "message": "CORS is configured correctly",
+        "allowed_origins": settings.CORS_ORIGINS,
+        "timestamp": "2025-01-22T12:00:00Z",
     }
 
 

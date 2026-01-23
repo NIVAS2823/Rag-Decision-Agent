@@ -88,18 +88,52 @@ async def check_mongodb_health() -> DependencyHealth:
     Returns:
         DependencyHealth: MongoDB health status
     """
-    # Placeholder for Phase 3 when we implement MongoDB
-    # For now, return a pending status
+    from app.services.database.mongodb import mongodb_manager
     
-    return DependencyHealth(
-        name="mongodb",
-        status="pending",
-        message="Database connection not yet implemented (Phase 3)",
-        details={
-            "configured": bool(settings.MONGODB_URL),
-            "url": settings.MONGODB_URL.split("@")[-1] if "@" in settings.MONGODB_URL else settings.MONGODB_URL,
-        }
-    )
+    if not mongodb_manager.client:
+        return DependencyHealth(
+            name="mongodb",
+            status="not_connected",
+            message="MongoDB client not initialized",
+            details={"configured": bool(settings.MONGODB_URL)}
+        )
+    
+    # Measure response time
+    import time
+    start_time = time.time()
+    
+    try:
+        is_healthy = await mongodb_manager.health_check()
+        response_time_ms = (time.time() - start_time) * 1000
+        
+        if is_healthy:
+            return DependencyHealth(
+                name="mongodb",
+                status="healthy",
+                response_time_ms=round(response_time_ms, 2),
+                message="MongoDB connection is healthy",
+                details={
+                    "database": settings.MONGODB_DB_NAME,
+                    "max_pool_size": settings.MONGODB_MAX_POOL_SIZE,
+                }
+            )
+        else:
+            return DependencyHealth(
+                name="mongodb",
+                status="unhealthy",
+                response_time_ms=round(response_time_ms, 2),
+                message="MongoDB ping failed",
+                details={}
+            )
+    except Exception as e:
+        response_time_ms = (time.time() - start_time) * 1000
+        return DependencyHealth(
+            name="mongodb",
+            status="unhealthy",
+            response_time_ms=round(response_time_ms, 2),
+            message=f"MongoDB health check error: {str(e)}",
+            details={}
+        )
 
 
 async def check_redis_health() -> DependencyHealth:

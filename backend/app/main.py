@@ -17,7 +17,8 @@ from app.core.config import settings
 from app.api.routes import health, debug
 from app.core.logging_config import setup_logging,get_logger
 from app.api.dependencies.logging import RequestLoggingMiddleware
-from app.services.database.mongodb import mongodb_manager
+# from app.services.database.mongodb import mongodb_manager
+from app.services.database import initialize_database,close_database
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -58,10 +59,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     # Initialize MongoDB
     try:
-        await mongodb_manager.connect()
-        logger.info("✅ MongoDB connection established")
+        await initialize_database()
+        logger.info("✅ Database initialized successfully")
     except Exception as e:
-        logger.exception("❌ Failed to initialize MongoDB")
+        logger.error(f"❌ Failed to initialize database: {e}")
         if settings.is_production:
             raise
 
@@ -79,10 +80,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     logger.info("=" * 70)
 
     try:
-        await mongodb_manager.disconnect()
-        logger.info("✅ MongoDB connection closed")
+        await close_database()
+        logger.info("✅ Database connection closed")
     except Exception:
-        logger.exception("⚠️ Error while closing MongoDB connection")
+        logger.exception("⚠️ Error while closing database connection")
 
     logger.info("✅ Shutdown complete")
     logger.info("=" * 70)

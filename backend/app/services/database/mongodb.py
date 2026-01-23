@@ -71,7 +71,7 @@ class MongoDBManager:
         """
         Disconnect from MongoDB
         """
-        if self.client:
+        if self.client is not None:
             logger.info("Closing MongoDB connection...")
             self.client.close()
             logger.info("✅ MongoDB connection closed")
@@ -83,7 +83,7 @@ class MongoDBManager:
         Returns:
             bool: True if healthy, False otherwise
         """
-        if not self.client:
+        if  self.client is not None:
             return False
         
         try:
@@ -104,7 +104,7 @@ class MongoDBManager:
         Raises:
             RuntimeError: If not connected
         """
-        if not self.db:
+        if self.db is None:
             raise RuntimeError("Database not connected. Call connect() first.")
         return self.db
     

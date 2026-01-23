@@ -94,3 +94,66 @@ async def get_rag_config():
     return settings.get_rag_config()
 
 
+@router.get(
+    "/database/stats",
+    summary="View database statistics",
+    description="Returns database statistics. Only available in development.",
+    tags=["debug"],
+)
+async def get_database_statistics():
+    """Get database statistics"""
+    if not settings.is_development:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debug endpoints are only available in development mode"
+        )
+    
+    from app.services.database import db_client
+    
+    return await db_client.get_database_stats()
+
+
+@router.get(
+    "/database/collections",
+    summary="List database collections",
+    description="Returns list of all collections. Only available in development.",
+    tags=["debug"],
+)
+async def list_database_collections():
+    """List all database collections"""
+    if not settings.is_development:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debug endpoints are only available in development mode"
+        )
+    
+    from app.services.database import db_client
+    
+    collections = await db_client.list_collections()
+    return {"collections": collections}
+
+
+@router.get(
+    "/database/collections/{collection_name}",
+    summary="View collection statistics",
+    description="Returns statistics for a specific collection. Only available in development.",
+    tags=["debug"],
+)
+async def get_collection_statistics(collection_name: str):
+    """Get collection statistics"""
+    if not settings.is_development:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debug endpoints are only available in development mode"
+        )
+    
+    from app.services.database import db_client
+    
+    try:
+        return await db_client.get_collection_stats(collection_name)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Collection not found or error: {str(e)}"
+        )
+

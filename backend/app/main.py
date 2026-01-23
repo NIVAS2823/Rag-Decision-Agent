@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.routes import health
+from app.api.routes import health,debug
 from app.core.logging_config import setup_logging
 from app.api.dependencies.logging import RequestLoggingMiddleware
 
@@ -195,6 +195,9 @@ app.add_middleware(
 app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(health.router,prefix="/api/v1",tags=["health"])
+
+if settings.is_development:
+    app.include_router(debug.router, prefix="/api/v1/debug", tags=["debug"])
 # ============================================================================
 # ROOT ENDPOINT
 # ============================================================================

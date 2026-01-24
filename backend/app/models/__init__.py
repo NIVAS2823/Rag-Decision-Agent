@@ -13,9 +13,24 @@ from app.models.user import (
     UserRole,
     PasswordChange,
 )
+from app.models.decision import (
+    Decision,
+    DecisionInDB,
+    DecisionCreate,
+    DecisionList,
+    DecisionStats,
+    DecisionStatus,
+    DecisionOutput,
+    Citation,
+    VerificationResult,
+    ConfidenceScore,
+    ConfidenceLevel,
+    RetrievalContext,
+)
 
 
 __all__ = [
+    # User models
     "User",
     "UserInDB",
     "UserCreate",
@@ -23,4 +38,17 @@ __all__ = [
     "UserList",
     "UserRole",
     "PasswordChange",
+    # Decision models
+    "Decision",
+    "DecisionInDB",
+    "DecisionCreate",
+    "DecisionList",
+    "DecisionStats",
+    "DecisionStatus",
+    "DecisionOutput",
+    "Citation",
+    "VerificationResult",
+    "ConfidenceScore",
+    "ConfidenceLevel",
+    "RetrievalContext",
 ]

@@ -28,6 +28,14 @@ from app.models.decision import (
     RetrievalContext,
 )
 
+from app.models.document import (
+    Document,
+    DocumentInDB,
+    DocumentStatus,
+    DocumentType,
+)
+
+
 
 __all__ = [
     # User models
@@ -51,4 +59,8 @@ __all__ = [
     "ConfidenceScore",
     "ConfidenceLevel",
     "RetrievalContext",
+    "Document",
+    "DocumentInDB",
+    "DocumentStatus",
+    "DocumentType",
 ]

@@ -157,3 +157,29 @@ async def get_collection_statistics(collection_name: str):
             detail=f"Collection not found or error: {str(e)}"
         )
 
+@router.get(
+    "/database/indexes",
+    summary="Verify database indexes",
+    description="Returns all indexes for all collections. Only available in development.",
+    tags=["debug"],
+)
+async def verify_database_indexes():
+    """Verify all database indexes"""
+    if not settings.is_development:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debug endpoints are only available in development mode"
+        )
+    
+    from app.services.database import db_client
+    
+    indexes = await db_client.verify_indexes()
+    
+    # Count total indexes
+    total = sum(len(idx_list) for idx_list in indexes.values())
+    
+    return {
+        "total_indexes": total,
+        "collections": len(indexes),
+        "indexes": indexes
+    }

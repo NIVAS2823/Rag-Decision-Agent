@@ -52,6 +52,12 @@ class DatabaseClient:
             await self._create_documents_indexes()
             await self._create_audit_logs_indexes()
             await self._create_sessions_indexes()
+
+            await self.create_collection_validators()
+
+            indexes = await self.verify_indexes()
+            total_indexes = sum(len(idx_list) for idx_list in indexes.values())
+            logger.info(f"✅ Verified {total_indexes} indexes across {len(indexes)} collections")
             
             self._initialized = True
             logger.info("✅ Database initialization complete")
@@ -251,6 +257,91 @@ class DatabaseClient:
         collections = await db.list_collection_names()
         return collections
 
+    # ========================================================================
+    # COLLECTION VALIDATION
+    # ========================================================================
+    
+    async def create_collection_validators(self) -> None:
+        """
+        Create JSON schema validators for collections
+        
+        Enforces data integrity at the database level.
+        """
+        db = mongodb_manager.get_database()
+        
+        # User collection validator
+        user_validator = {
+            "$jsonSchema": {
+                "bsonType": "object",
+                "required": ["email", "hashed_password", "full_name", "role", "created_at"],
+                "properties": {
+                    "email": {
+                        "bsonType": "string",
+                        "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+                        "description": "Must be a valid email"
+                    },
+                    "hashed_password": {
+                        "bsonType": "string",
+                        "minLength": 1,
+                        "description": "Hashed password required"
+                    },
+                    "full_name": {
+                        "bsonType": "string",
+                        "minLength": 1,
+                        "maxLength": 100,
+                        "description": "Full name required"
+                    },
+                    "role": {
+                        "enum": ["admin", "user", "viewer"],
+                        "description": "Must be a valid role"
+                    },
+                    "is_active": {
+                        "bsonType": "bool",
+                        "description": "Active status"
+                    },
+                    "is_verified": {
+                        "bsonType": "bool",
+                        "description": "Verification status"
+                    }
+                }
+            }
+        }
+        
+        # Apply validator to users collection
+        try:
+            await db.command({
+                "collMod": self.USERS_COLLECTION,
+                "validator": user_validator,
+                "validationLevel": "moderate"  # moderate allows updates to existing docs
+            })
+            logger.info(f"✅ Applied schema validator to {self.USERS_COLLECTION}")
+        except Exception as e:
+            # Collection might not exist yet, that's okay
+            logger.debug(f"Could not apply validator to {self.USERS_COLLECTION}: {e}")
+    
+    async def verify_indexes(self) -> Dict[str, list]:
+        """
+        Verify all indexes are created
+        
+        Returns:
+            Dict[str, list]: Dictionary of collection names to their indexes
+        """
+        result = {}
+        
+        collections = [
+            self.USERS_COLLECTION,
+            self.DECISIONS_COLLECTION,
+            self.DOCUMENTS_COLLECTION,
+            self.AUDIT_LOGS_COLLECTION,
+            self.SESSIONS_COLLECTION,
+        ]
+        
+        for collection_name in collections:
+            collection = mongodb_manager.get_collection(collection_name)
+            indexes = await collection.list_indexes().to_list(length=None)
+            result[collection_name] = [idx["name"] for idx in indexes]
+        
+        return result
 
 # Global database client instance
 db_client = DatabaseClient()

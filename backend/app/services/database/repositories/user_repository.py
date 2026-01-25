@@ -23,10 +23,13 @@ class UserRepository:
     """
     User repository for database operations
     """
+    @property
+    def collection(self):
+        return db_client.get_users_collection()
     
     def __init__(self):
         """Initialize repository"""
-        self.collection = db_client.get_users_collection()
+        pass
     
     async def create(self, user_data: UserCreate) -> UserInDB:
         """

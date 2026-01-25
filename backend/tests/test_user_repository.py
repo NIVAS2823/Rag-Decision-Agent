@@ -1,13 +1,15 @@
 """
 Tests for user repository
 """
+
+import pytest_asyncio
 import pytest
 from app.models.user import UserCreate, UserUpdate, UserRole
 from app.services.database import mongodb_manager
 from app.services.database.repositories import user_repository
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def setup_database():
     """Setup database for tests"""
     await mongodb_manager.connect()

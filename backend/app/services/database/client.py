@@ -318,6 +318,48 @@ class DatabaseClient:
         except Exception as e:
             # Collection might not exist yet, that's okay
             logger.debug(f"Could not apply validator to {self.USERS_COLLECTION}: {e}")
+
+        # Decision collection validator
+        decision_validator = {
+    "$jsonSchema": {
+        "bsonType": "object",
+        "required": ["user_id", "query", "status", "created_at"],
+        "properties": {
+            "user_id": {
+                "bsonType": "string",
+                "description": "User ID required"
+            },
+            "query": {
+                "bsonType": "string",
+                "minLength": 10,
+                "description": "Decision query required"
+            },
+            "context": {
+                "bsonType": ["string", "null"],
+                "description": "Optional context"
+            },
+            "status": {
+                "enum": ["pending", "processing", "completed", "failed"],
+                "description": "Decision status"
+            },
+            "created_at": {
+                "bsonType": "date",
+                "description": "Creation timestamp"
+            }
+        }
+    }
+}
+
+        try:
+            await db.command({
+        "collMod": self.DECISIONS_COLLECTION,
+        "validator": decision_validator,
+        "validationLevel": "moderate"
+        })
+            logger.info(f"✅ Applied schema validator to {self.DECISIONS_COLLECTION}")
+        except Exception as e:
+            logger.debug(f"Could not apply validator to {self.DECISIONS_COLLECTION}: {e}")
+
     
     async def verify_indexes(self) -> Dict[str, list]:
         """

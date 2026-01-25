@@ -181,7 +181,7 @@ class DecisionInDB(BaseModel):
     context: Optional[str] = Field(default=None, description="Additional context provided")
     
     # Decision output
-    decision: DecisionOutput = Field(..., description="Structured decision output")
+    decision: Optional[DecisionOutput] = None
     
     # Citations and sources
     citations: List[Citation] = Field(default_factory=list, description="Source citations")
@@ -193,7 +193,7 @@ class DecisionInDB(BaseModel):
     )
     
     # Confidence
-    confidence: ConfidenceScore = Field(..., description="Confidence scoring")
+    confidence: Optional[ConfidenceScore] = None
     
     # Retrieval information
     retrieval_context: Optional[RetrievalContext] = Field(

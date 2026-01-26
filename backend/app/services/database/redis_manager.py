@@ -80,7 +80,7 @@ class RedisManager:
         """
         if self.client:
             logger.info("Closing Redis connection...")
-            await self.client.close()
+            await self.client.aclose()
             if self._pool:
                 await self._pool.disconnect()
             logger.info("✅ Redis connection closed")

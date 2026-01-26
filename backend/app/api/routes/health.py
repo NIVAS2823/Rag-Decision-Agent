@@ -143,8 +143,7 @@ async def check_redis_health() -> DependencyHealth:
     Returns:
         DependencyHealth: Redis health status
     """
-    # Placeholder for Phase 3 when we implement Redis
-    # For now, check if it's enabled
+    from app.services.database.redis_manager import redis_manager
     
     if not settings.REDIS_ENABLE:
         return DependencyHealth(
@@ -154,15 +153,52 @@ async def check_redis_health() -> DependencyHealth:
             details={"enabled": False}
         )
     
-    return DependencyHealth(
-        name="redis",
-        status="pending",
-        message="Redis connection not yet implemented (Phase 3)",
-        details={
-            "configured": bool(settings.REDIS_URL),
-            "enabled": settings.REDIS_ENABLE,
-        }
-    )
+    if not redis_manager.client:
+        return DependencyHealth(
+            name="redis",
+            status="not_connected",
+            message="Redis client not initialized",
+            details={"configured": bool(settings.REDIS_URL)}
+        )
+    
+    # Measure response time
+    import time
+    start_time = time.time()
+    
+    try:
+        is_healthy = await redis_manager.health_check()
+        response_time_ms = (time.time() - start_time) * 1000
+        
+        if is_healthy:
+            info = await redis_manager.get_info()
+            return DependencyHealth(
+                name="redis",
+                status="healthy",
+                response_time_ms=round(response_time_ms, 2),
+                message="Redis connection is healthy",
+                details={
+                    "version": info.get("version"),
+                    "connected_clients": info.get("connected_clients"),
+                    "used_memory": info.get("used_memory_human"),
+                }
+            )
+        else:
+            return DependencyHealth(
+                name="redis",
+                status="unhealthy",
+                response_time_ms=round(response_time_ms, 2),
+                message="Redis ping failed",
+                details={}
+            )
+    except Exception as e:
+        response_time_ms = (time.time() - start_time) * 1000
+        return DependencyHealth(
+            name="redis",
+            status="unhealthy",
+            response_time_ms=round(response_time_ms, 2),
+            message=f"Redis health check error: {str(e)}",
+            details={}
+        )
 
 
 async def check_llm_provider_health() -> list[DependencyHealth]:

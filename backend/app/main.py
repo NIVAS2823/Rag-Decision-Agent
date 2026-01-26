@@ -19,6 +19,7 @@ from app.core.logging_config import setup_logging,get_logger
 from app.api.dependencies.logging import RequestLoggingMiddleware
 # from app.services.database.mongodb import mongodb_manager
 from app.services.database import initialize_database,close_database
+from app.services.database.redis_manager import redis_manager
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -65,6 +66,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         logger.error(f"❌ Failed to initialize database: {e}")
         if settings.is_production:
             raise
+    if settings.REDIS_ENABLE:
+        try:
+            await redis_manager.connect()
+            logger.info("✅ Redis connected successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Redis: {e}")
+            if settings.is_production:
+                raise
+    else:
+        logger.info("ℹ️ Redis is disabled")
 
     logger.info("✅ Application startup complete")
     logger.info("=" * 70)
@@ -84,6 +95,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         logger.info("✅ Database connection closed")
     except Exception:
         logger.exception("⚠️ Error while closing database connection")
+
+    if settings.REDIS_ENABLE:
+        try:
+            await redis_manager.disconnect()
+            logger.info("✅ Redis connection closed")
+        except Exception:
+            logger.exception("⚠️ Error while closing Redis connection")
 
     logger.info("✅ Shutdown complete")
     logger.info("=" * 70)

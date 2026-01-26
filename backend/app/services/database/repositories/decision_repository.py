@@ -287,6 +287,10 @@ class DecisionRepository:
                     "processing_time_ms": processing_time_ms
                 }
             )
+
+            from app.services.cache import cache_utils
+            await cache_utils.invalidate_decision_cache(decision_id)
+            
             return DecisionInDB(**result)
         
         return None
@@ -420,6 +424,77 @@ class DecisionRepository:
             start_date=start_date,
             limit=limit
         )
+    
+
+    # ========================================================================
+    # CACHED OPERATIONS
+    # ========================================================================
+    
+    async def get_by_id_cached(self, decision_id: str) -> Optional[DecisionInDB]:
+        """
+        Get decision by ID with caching
+        
+        Args:
+            decision_id: Decision ID
+            
+        Returns:
+            Optional[DecisionInDB]: Decision if found, None otherwise
+        """
+        from app.services.cache import cache_utils, cache_keys
+        
+        cache_key = cache_keys.decision_by_id(decision_id)
+        
+        async def fetch_decision():
+            decision = await self.get_by_id(decision_id)
+            return decision.model_dump() if decision else None
+        
+        decision_dict = await cache_utils.get_or_set(
+            cache_key,
+            fetch_decision,
+            ttl=cache_utils.TTL_MEDIUM
+        )
+        
+        if decision_dict:
+            return DecisionInDB(**decision_dict)
+        
+        return None
+    
+    async def get_by_user_cached(
+        self,
+        user_id: str,
+        skip: int = 0,
+        limit: int = 10
+    ) -> List[DecisionInDB]:
+        """
+        Get decisions for user with caching
+        
+        Args:
+            user_id: User ID
+            skip: Number to skip
+            limit: Page size
+            
+        Returns:
+            List[DecisionInDB]: List of decisions
+        """
+        from app.services.cache import cache_utils, cache_keys
+        
+        page = (skip // limit) + 1
+        cache_key = cache_keys.user_decisions(user_id, page)
+        
+        async def fetch_decisions():
+            decisions = await self.get_by_user(user_id, skip, limit)
+            return [d.model_dump() for d in decisions]
+        
+        decisions_list = await cache_utils.get_or_set(
+            cache_key,
+            fetch_decisions,
+            ttl=cache_utils.TTL_SHORT
+        )
+        
+        if decisions_list:
+            return [DecisionInDB(**d) for d in decisions_list]
+        
+        return []
 
 
 # Global repository instance

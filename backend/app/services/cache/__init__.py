@@ -8,6 +8,7 @@ from app.services.cache.redis_client import redis_client
 from app.services.cache.keys import cache_keys
 from app.services.cache.utils import cache_utils
 from app.services.cache.decorators import cached, cache_invalidate
+from app.services.cache.invalidation import cache_invalidation
 
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "cache_utils",
     "cached",
     "cache_invalidate",
+    "cache_invalidation",
 ]

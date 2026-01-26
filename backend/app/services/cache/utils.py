@@ -6,6 +6,8 @@ Helper functions for common caching patterns.
 
 from typing import Optional, Any, Callable
 from datetime import timedelta
+from bson import ObjectId
+from datetime import datetime
 
 from app.services.cache import redis_client
 from app.services.cache.keys import cache_keys
@@ -13,6 +15,25 @@ from app.core.logging_config import get_logger
 
 
 logger = get_logger(__name__)
+
+def json_safe(value: Any) -> Any:
+    """
+    Convert objects into JSON-serializable form for Redis storage.
+    """
+    if isinstance(value, ObjectId):
+        return str(value)
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+
+    if isinstance(value, dict):
+        return {k: json_safe(v) for k, v in value.items()}
+
+    if isinstance(value, list):
+        return [json_safe(v) for v in value]
+
+    return value
+
 
 
 class CacheUtils:
@@ -53,8 +74,7 @@ class CacheUtils:
         
         # Store in cache
         if data is not None:
-            await redis_client.set(key, data, ttl=ttl)
-        
+            await redis_client.set(key, json_safe(data), ttl=ttl)      
         return data
     
     @staticmethod

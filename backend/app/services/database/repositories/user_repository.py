@@ -216,6 +216,9 @@ class UserRepository:
                     f"Updated user: {user_id}",
                     extra={"updated_fields": list(update_dict.keys())}
                 )
+
+                from app.services.cache import cache_utils
+                await cache_utils.invalidate_user_cache(user_id)
                 return UserInDB(**result)
             
             return None
@@ -300,6 +303,71 @@ class UserRepository:
         """
         count = await self.collection.count_documents({"email": email}, limit=1)
         return count > 0
+    
+
+    # ========================================================================
+    # CACHED OPERATIONS
+    # ========================================================================
+    
+    async def get_by_id_cached(self, user_id: str) -> Optional[UserInDB]:
+        """
+        Get user by ID with caching
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            Optional[UserInDB]: User if found, None otherwise
+        """
+        from app.services.cache import cache_utils, cache_keys
+        
+        cache_key = cache_keys.user_by_id(user_id)
+        
+        async def fetch_user():
+            import asyncio
+            await asyncio.sleep(0.005)
+            user = await self.get_by_id(user_id)
+            return user.model_dump() if user else None
+        
+        user_dict = await cache_utils.get_or_set(
+            cache_key,
+            fetch_user,
+            ttl=cache_utils.TTL_LONG
+        )
+        
+        if user_dict and isinstance(user_dict, dict):
+            return UserInDB(**user_dict)
+        
+        return user_dict
+    
+    async def get_by_email_cached(self, email: str) -> Optional[UserInDB]:
+        """
+        Get user by email with caching
+        
+        Args:
+            email: User email
+            
+        Returns:
+            Optional[UserInDB]: User if found, None otherwise
+        """
+        from app.services.cache import cache_utils, cache_keys
+        
+        cache_key = cache_keys.user_by_email(email)
+        
+        async def fetch_user():
+            user = await self.get_by_email(email)
+            return user.model_dump() if user else None
+        
+        user_dict = await cache_utils.get_or_set(
+            cache_key,
+            fetch_user,
+            ttl=cache_utils.TTL_LONG
+        )
+        
+        if user_dict:
+            return UserInDB(**user_dict)
+        
+        return None
 
 
 # Global repository instance

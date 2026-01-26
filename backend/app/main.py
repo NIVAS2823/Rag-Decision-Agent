@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.routes import health, debug
+from app.api.routes import health, debug,admin_cache
 from app.core.logging_config import setup_logging,get_logger
 from app.api.dependencies.logging import RequestLoggingMiddleware
 # from app.services.database.mongodb import mongodb_manager
@@ -159,6 +159,7 @@ app.include_router(health.router, prefix="/api/v1", tags=["health"])
 
 if settings.is_development:
     app.include_router(debug.router, prefix="/api/v1/debug", tags=["debug"])
+    app.include_router(admin_cache.router, prefix="/api/v1/admin/cache", tags=["admin-cache"])
 
 
 # ============================================================================

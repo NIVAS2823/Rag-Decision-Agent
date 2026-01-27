@@ -320,3 +320,32 @@ class TokenPayload(BaseModel):
     type: str = Field(..., description="Token type")
     exp: int = Field(..., description="Expiration timestamp")
     iat: int = Field(..., description="Issued at timestamp")
+
+class UserRegistrationResponse(BaseModel):
+    """User registration response"""
+    user: User = Field(..., description="Created user information")
+    tokens: Token = Field(..., description="Authentication tokens")
+    message: str = Field(default="User registered successfully")
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "user": {
+                    "id": "507f1f77bcf86cd799439011",
+                    "email": "newuser@example.com",
+                    "full_name": "New User",
+                    "role": "user",
+                    "is_active": True,
+                    "is_verified": False,
+                    "created_at": "2025-01-27T12:00:00Z",
+                    "updated_at": "2025-01-27T12:00:00Z"
+                },
+                "tokens": {
+                    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "token_type": "bearer"
+                },
+                "message": "User registered successfully"
+            }
+        }
+    }

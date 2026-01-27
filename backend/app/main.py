@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.routes import health, debug,admin_cache
+from app.api.routes import health, debug,admin_cache, auth
 from app.core.logging_config import setup_logging,get_logger
 from app.api.dependencies.logging import RequestLoggingMiddleware
 # from app.services.database.mongodb import mongodb_manager
@@ -155,7 +155,12 @@ app.add_middleware(
 
 app.add_middleware(RequestLoggingMiddleware)
 
+
+
+
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
+# AUTHENTICATION ROUTES
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 
 if settings.is_development:
     app.include_router(debug.router, prefix="/api/v1/debug", tags=["debug"])

@@ -3,6 +3,7 @@ JWT Token Service
 =================
 JWT token generation and management.
 """
+import time
 
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -239,6 +240,176 @@ class JWTService:
         logger.info(f"Created email verification token for user: {email}")
         
         return encoded_jwt
+    
+    @staticmethod
+    def decode_token(token: str) -> Optional[Dict[str, Any]]:
+        """
+        Decode and verify JWT token
+        
+        Args:
+            token: JWT token to decode
+            
+        Returns:
+            Optional[Dict[str, Any]]: Token payload if valid, None otherwise
+            
+        Raises:
+            JWTError: If token is invalid
+        """
+        from jose import JWTError, ExpiredSignatureError
+        
+        try:
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM]
+            )
+            return payload
+            
+        except ExpiredSignatureError:
+            logger.warning("Token has expired")
+            raise
+        except JWTError as e:
+            logger.warning(f"Token validation failed: {e}")
+            raise
+    
+    @staticmethod
+    def verify_access_token(token: str) -> Optional[Dict[str, Any]]:
+        """
+        Verify and decode access token
+        
+        Args:
+            token: Access token
+            
+        Returns:
+            Optional[Dict[str, Any]]: Token payload if valid
+            
+        Raises:
+            ValueError: If token type is not 'access'
+            JWTError: If token is invalid or expired
+        """
+        payload = JWTService.decode_token(token)
+        
+        if payload.get("type") != JWTService.TOKEN_TYPE_ACCESS:
+            raise ValueError("Invalid token type - expected access token")
+        
+        return payload
+    
+    @staticmethod
+    def verify_refresh_token(token: str) -> Optional[Dict[str, Any]]:
+        """
+        Verify and decode refresh token
+        
+        Args:
+            token: Refresh token
+            
+        Returns:
+            Optional[Dict[str, Any]]: Token payload if valid
+            
+        Raises:
+            ValueError: If token type is not 'refresh'
+            JWTError: If token is invalid or expired
+        """
+        payload = JWTService.decode_token(token)
+        
+        if payload.get("type") != JWTService.TOKEN_TYPE_REFRESH:
+            raise ValueError("Invalid token type - expected refresh token")
+        
+        return payload
+    
+    @staticmethod
+    async def verify_token_with_blacklist(token: str) -> Optional[Dict[str, Any]]:
+        """
+        Verify token and check if it's blacklisted
+        
+        Args:
+            token: JWT token
+            
+        Returns:
+            Optional[Dict[str, Any]]: Token payload if valid and not blacklisted
+            
+        Raises:
+            ValueError: If token is blacklisted
+            JWTError: If token is invalid or expired
+        """
+        from app.services.auth.token_blacklist import token_blacklist
+        
+        # Check blacklist first (faster than decoding)
+        is_blacklisted = await token_blacklist.is_blacklisted(token)
+        if is_blacklisted:
+            raise ValueError("Token has been revoked")
+        
+        # Decode and verify
+        payload = JWTService.decode_token(token)
+        
+        return payload
+    
+    @staticmethod
+    def extract_user_id(token: str) -> Optional[str]:
+        """
+        Extract user ID from token without full verification
+        
+        Useful for logging/debugging purposes.
+        
+        Args:
+            token: JWT token
+            
+        Returns:
+            Optional[str]: User ID if present
+        """
+        try:
+            # Decode without verification (just to read payload)
+            payload = jwt.decode(
+                                token,
+                                key="",
+                                algorithms=[settings.JWT_ALGORITHM],
+                                options={"verify_signature": False}
+                                )
+
+            return payload.get("sub")
+        except Exception:
+            return None
+    
+    @staticmethod
+    def get_token_expiration(token: str) -> Optional[int]:
+        """
+        Get token expiration timestamp
+        
+        Args:
+            token: JWT token
+            
+        Returns:
+            Optional[int]: Expiration timestamp
+        """
+        try:
+            payload = jwt.decode(
+                            token,
+                            key="",
+                            algorithms=[settings.JWT_ALGORITHM],
+                            options={"verify_signature": False}
+                                )
+            return payload.get("exp")
+        except Exception:
+            return None
+    
+    @staticmethod
+    def calculate_token_ttl(token: str) -> Optional[int]:
+        """
+        Calculate remaining TTL for token (for blacklist)
+        
+        Args:
+            token: JWT token
+            
+        Returns:
+            Optional[int]: TTL in seconds, or None if expired/invalid
+        """
+        exp = JWTService.get_token_expiration(token)
+        if not exp:
+            return None
+        
+        current_time = time.time()
+        ttl = int(exp - current_time)
+        
+        return ttl if ttl > 0 else 0
 
 
 # Singleton instance

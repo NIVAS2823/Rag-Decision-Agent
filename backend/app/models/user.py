@@ -290,3 +290,33 @@ class UserList(BaseModel):
             }
         }
     }
+
+# ============================================================================
+# TOKEN MODELS
+# ============================================================================
+
+class Token(BaseModel):
+    """Token response"""
+    access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token")
+    token_type: str = Field(default="bearer", description="Token type")
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "token_type": "bearer"
+            }
+        }
+    }
+
+
+class TokenPayload(BaseModel):
+    """Token payload (decoded)"""
+    sub: str = Field(..., description="Subject (user ID)")
+    email: Optional[str] = Field(default=None, description="User email")
+    role: Optional[str] = Field(default=None, description="User role")
+    type: str = Field(..., description="Token type")
+    exp: int = Field(..., description="Expiration timestamp")
+    iat: int = Field(..., description="Issued at timestamp")

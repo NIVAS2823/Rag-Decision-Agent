@@ -12,6 +12,8 @@ from app.models.user import (
     UserList,
     UserRole,
     PasswordChange,
+    Token,
+    TokenPayload
 )
 from app.models.decision import (
     Decision,
@@ -46,6 +48,8 @@ __all__ = [
     "UserList",
     "UserRole",
     "PasswordChange",
+    "Token",
+    "TokenPayload",
     # Decision models
     "Decision",
     "DecisionInDB",

@@ -131,7 +131,7 @@ class UserCreate(BaseModel):
         "json_schema_extra": {
             "example": {
                 "email": "newuser@example.com",
-                "password": "SecurePass123",
+                "password": "NewSecurePass123",
                 "full_name": "Jane Smith",
                 "role": "user"
             }
@@ -223,6 +223,75 @@ class PasswordChange(BaseModel):
             raise ValueError("Password must contain at least one digit")
         
         return v
+    
+class PasswordResetRequest(BaseModel):
+    """
+    Password reset request
+    
+    Used when a user requests a password reset link.
+    """
+    email: EmailStr = Field(..., description="User email address")
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "email": "user@example.com"
+            }
+        }
+    }
+
+
+class PasswordResetVerify(BaseModel):
+    """
+    Password reset token verification
+    
+    Used to verify if a reset token is valid before showing reset form.
+    """
+    token: str = Field(..., description="Password reset token")
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            }
+        }
+    }
+
+
+class PasswordResetConfirm(BaseModel):
+    """
+    Password reset confirmation
+    
+    Used to complete the password reset with a new password.
+    """
+    token: str = Field(..., description="Password reset token")
+    new_password: str = Field(..., min_length=8, max_length=100, description="New password")
+    
+    @field_validator("new_password")
+    def validate_new_password(cls, v):
+        """Validate new password strength"""
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        
+        return v
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "new_password": "NewSecurePass123"
+            }
+        }
+    }
 
 
 # ============================================================================

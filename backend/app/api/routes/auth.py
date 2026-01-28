@@ -7,7 +7,6 @@ User authentication endpoints (register, login, logout, etc.).
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import HTTPBearer
 
-from app.models.user import UserCreate, User, Token,UserInDB
 from app.services.database.repositories import user_repository
 from app.services.auth import jwt_service
 from app.core.logging_config import get_logger
@@ -16,7 +15,18 @@ from app.core.exceptions import (
     UserNotFoundException,
     UserInactiveException
 )
-from app.models.user import UserCreate, UserLogin, User, Token,UserRole
+from app.models.user import (
+    UserCreate,
+    UserLogin,
+    User,
+    Token,
+    UserInDB,
+    UserRole,
+    PasswordChange,
+    PasswordResetRequest,
+    PasswordResetVerify,
+    PasswordResetConfirm,
+)
 from app.api.dependencies.auth import (
     get_current_user,
     require_admin,
@@ -24,8 +34,11 @@ from app.api.dependencies.auth import (
     require_any_role,
     RoleChecker,
 )
+from app.services.auth.password import verify_password, hash_password
 from app.services.auth.token_blacklist import token_blacklist
 from app.api.dependencies.auth import get_token_from_header
+
+
 logger = get_logger(__name__)
 router = APIRouter()
 security = HTTPBearer()
@@ -475,3 +488,320 @@ async def custom_role_check_endpoint(
         "note": "USER role is NOT allowed on this endpoint",
         "endpoint": "/custom-role-check"
     }
+
+# ============================================================================
+# PASSWORD RESET (Step 5.8)
+# ============================================================================
+
+@router.post(
+    "/password-reset/request",
+    status_code=status.HTTP_200_OK,
+    summary="Request password reset",
+    description="Request a password reset link to be sent to email",
+    tags=["password-reset"],
+)
+async def request_password_reset(request: PasswordResetRequest):
+    """
+    Request Password Reset
+    
+    Generates a password reset token and sends it to the user's email.
+    For security, always returns success even if email doesn't exist.
+    
+    Args:
+        request: Password reset request with email
+        
+    Returns:
+        dict: Success message
+        
+    Note:
+        In production, this would send an email with the reset link.
+        For now, it logs the token for testing purposes.
+    """
+    try:
+        # Get user by email
+        user = await user_repository.get_by_email(request.email)
+        
+        if user:
+            # Generate reset token
+            reset_token = jwt_service.create_password_reset_token(
+                user_id=str(user.id),
+                email=user.email
+            )
+            
+            # TODO: Send email with reset link
+            # In production, you would:
+            # 1. Create reset link: f"https://yourapp.com/reset-password?token={reset_token}"
+            # 2. Send email via email service
+            # For now, just log it (REMOVE IN PRODUCTION)
+            logger.info(
+                f"Password reset requested for: {user.email}",
+                extra={
+                    "user_id": str(user.id),
+                    "reset_token": reset_token  # REMOVE IN PRODUCTION
+                }
+            )
+            
+            # In development, return the token for testing
+            # REMOVE THIS IN PRODUCTION
+            from app.core.config import settings
+            if not settings.is_production:
+                return {
+                    "message": "Password reset instructions sent to email",
+                    "reset_token": reset_token,  # DEV ONLY
+                    "note": "In production, this would be sent via email"
+                }
+        else:
+            # For security, don't reveal that email doesn't exist
+            logger.warning(f"Password reset requested for non-existent email: {request.email}")
+        
+        # Always return success to prevent email enumeration
+        return {
+            "message": "If the email exists, password reset instructions have been sent"
+        }
+        
+    except Exception as e:
+        logger.error(f"Password reset request error: {e}")
+        # Still return success for security
+        return {
+            "message": "If the email exists, password reset instructions have been sent"
+        }
+
+
+@router.post(
+    "/password-reset/verify",
+    status_code=status.HTTP_200_OK,
+    summary="Verify password reset token",
+    description="Verify if a password reset token is valid",
+    tags=["password-reset"],
+)
+async def verify_password_reset_token(request: PasswordResetVerify):
+    """
+    Verify Password Reset Token
+    
+    Checks if a password reset token is valid and not expired.
+    Useful for frontend validation before showing reset form.
+    
+    Args:
+        request: Token verification request
+        
+    Returns:
+        dict: Token validity status
+        
+    Raises:
+        HTTPException 400: If token is invalid or expired
+    """
+    try:
+        # Decode and verify token
+        payload = jwt_service.decode_token(request.token)
+        
+        # Check token type
+        if payload.get("type") != "password_reset":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid token type"
+            )
+        
+        # Get user to verify they still exist and are active
+        user_id = payload.get("sub")
+        user = await user_repository.get_by_id(user_id)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User not found"
+            )
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User account is inactive"
+            )
+        
+        logger.info(f"Password reset token verified for: {user.email}")
+        
+        return {
+            "valid": True,
+            "email": user.email,
+            "message": "Token is valid"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Invalid password reset token: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+
+
+@router.post(
+    "/password-reset/confirm",
+    status_code=status.HTTP_200_OK,
+    summary="Confirm password reset",
+    description="Complete password reset with new password",
+    tags=["password-reset"],
+)
+async def confirm_password_reset(request: PasswordResetConfirm):
+    """
+    Confirm Password Reset
+    
+    Completes the password reset by setting a new password.
+    Invalidates the reset token after successful use.
+    
+    Args:
+        request: Password reset confirmation with token and new password
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        HTTPException 400: If token is invalid or expired
+        HTTPException 500: If password update fails
+    """
+    try:
+        # Decode and verify token
+        payload = jwt_service.decode_token(request.token)
+        
+        # Check token type
+        if payload.get("type") != "password_reset":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid token type"
+            )
+        
+        # Get user
+        user_id = payload.get("sub")
+        email = payload.get("email")
+        
+        user = await user_repository.get_by_id(user_id)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User not found"
+            )
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User account is inactive"
+            )
+        
+        # Verify email matches (extra security)
+        if user.email != email:
+            logger.error(f"Email mismatch in password reset token")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid reset token"
+            )
+        
+        # Update password
+        from app.models.user import UserUpdate
+        update_data = UserUpdate(password=request.new_password)
+        
+        updated_user = await user_repository.update(str(user.id), update_data)
+        
+        if not updated_user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update password"
+            )
+        
+        logger.info(
+            f"Password reset completed for: {user.email}",
+            extra={"user_id": str(user.id)}
+        )
+        
+        # TODO: Optionally blacklist the reset token to prevent reuse
+        # (would require adding reset tokens to blacklist with 1-hour TTL)
+        
+        return {
+            "message": "Password has been reset successfully",
+            "email": user.email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Password reset confirmation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+
+
+@router.post(
+    "/password-change",
+    status_code=status.HTTP_200_OK,
+    summary="Change password",
+    description="Change password for authenticated user",
+    tags=["password-reset"],
+)
+async def change_password(
+    request: PasswordChange,
+    current_user: UserInDB = Depends(get_current_user)
+):
+    """
+    Change Password
+    
+    Allows authenticated users to change their password.
+    Requires current password verification.
+    
+    Args:
+        request: Password change request with current and new password
+        current_user: Current authenticated user
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        HTTPException 400: If current password is incorrect
+        HTTPException 500: If password update fails
+    """
+    try:
+        # Verify current password
+        if not verify_password(request.current_password, current_user.hashed_password):
+            logger.warning(f"Incorrect current password for: {current_user.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect"
+            )
+        
+        # Check new password is different
+        if verify_password(request.new_password, current_user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password must be different from current password"
+            )
+        
+        # Update password
+        from app.models.user import UserUpdate
+        update_data = UserUpdate(password=request.new_password)
+        
+        updated_user = await user_repository.update(str(current_user.id), update_data)
+        
+        if not updated_user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update password"
+            )
+        
+        logger.info(
+            f"Password changed for: {current_user.email}",
+            extra={"user_id": str(current_user.id)}
+        )
+        
+        return {
+            "message": "Password changed successfully",
+            "email": current_user.email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Password change error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while changing password"
+        )

@@ -138,6 +138,23 @@ class UserCreate(BaseModel):
         }
     }
 
+class UserLogin(BaseModel):
+    """
+    User login request
+    
+    Used when authenticating an existing user.
+    """
+    email: EmailStr = Field(..., description="User email address")
+    password: str = Field(..., min_length=1, description="User password")
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "email": "user@example.com",
+                "password": "SecurePass123"
+            }
+        }
+    }
 
 class UserUpdate(BaseModel):
     """
@@ -346,6 +363,37 @@ class UserRegistrationResponse(BaseModel):
                     "token_type": "bearer"
                 },
                 "message": "User registered successfully"
+            }
+        }
+    }
+
+
+class UserLoginResponse(BaseModel):
+    """User login response"""
+    user: User = Field(..., description="User information")
+    tokens: Token = Field(..., description="Authentication tokens")
+    message: str = Field(default="Login successful")
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "user": {
+                    "id": "507f1f77bcf86cd799439011",
+                    "email": "user@example.com",
+                    "full_name": "John Doe",
+                    "role": "user",
+                    "is_active": True,
+                    "is_verified": True,
+                    "created_at": "2025-01-27T12:00:00Z",
+                    "updated_at": "2025-01-27T12:00:00Z",
+                    "last_login": "2025-01-28T10:30:00Z"
+                },
+                "tokens": {
+                    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "token_type": "bearer"
+                },
+                "message": "Login successful"
             }
         }
     }

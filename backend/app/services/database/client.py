@@ -22,7 +22,6 @@ class DatabaseClient:
     and manages database initialization.
     """
     
-    # Collection names
     USERS_COLLECTION = "users"
     DECISIONS_COLLECTION = "decisions"
     DOCUMENTS_COLLECTION = "documents"
@@ -46,7 +45,6 @@ class DatabaseClient:
         logger.info("Initializing database collections and indexes...")
         
         try:
-            # Create indexes for each collection
             await self._create_users_indexes()
             await self._create_decisions_indexes()
             await self._create_documents_indexes()
@@ -66,9 +64,6 @@ class DatabaseClient:
             logger.error(f"❌ Database initialization failed: {e}")
             raise
     
-    # ========================================================================
-    # COLLECTION GETTERS
-    # ========================================================================
     
     def get_users_collection(self) -> AsyncIOMotorCollection:
         """Get users collection"""
@@ -90,24 +85,17 @@ class DatabaseClient:
         """Get sessions collection"""
         return mongodb_manager.get_collection(self.SESSIONS_COLLECTION)
     
-    # ========================================================================
-    # INDEX CREATION
-    # ========================================================================
     
     async def _create_users_indexes(self) -> None:
         """Create indexes for users collection"""
         collection = self.get_users_collection()
         
-        # Unique index on email
         await collection.create_index("email", unique=True)
         
-        # Index on created_at for sorting
         await collection.create_index("created_at")
         
-        # Index on role for filtering
         await collection.create_index("role")
         
-        # Index on is_active for filtering
         await collection.create_index("is_active")
         
         logger.info(f"✅ Created indexes for {self.USERS_COLLECTION}")
@@ -116,19 +104,14 @@ class DatabaseClient:
         """Create indexes for decisions collection"""
         collection = self.get_decisions_collection()
         
-        # Index on user_id for filtering user's decisions
         await collection.create_index("user_id")
         
-        # Index on created_at for sorting and time-based queries
         await collection.create_index("created_at")
         
-        # Compound index on user_id and created_at
         await collection.create_index([("user_id", 1), ("created_at", -1)])
         
-        # Index on status for filtering
         await collection.create_index("status")
         
-        # Text index on query and decision content for search
         await collection.create_index([
             ("query", "text"),
             ("decision.recommendation", "text"),
@@ -140,19 +123,14 @@ class DatabaseClient:
         """Create indexes for documents collection"""
         collection = self.get_documents_collection()
         
-        # Index on user_id
         await collection.create_index("user_id")
         
-        # Index on uploaded_at for sorting
         await collection.create_index("uploaded_at")
         
-        # Index on file_type for filtering
         await collection.create_index("file_type")
         
-        # Index on status (processed, pending, failed)
         await collection.create_index("status")
         
-        # Text index on filename for search
         await collection.create_index("filename", name="filename_text")
         
         logger.info(f"✅ Created indexes for {self.DOCUMENTS_COLLECTION}")
@@ -184,13 +162,10 @@ class DatabaseClient:
         """Create indexes for sessions collection"""
         collection = self.get_sessions_collection()
         
-        # Unique index on session_id
         await collection.create_index("session_id", unique=True)
         
-        # Index on user_id
         await collection.create_index("user_id")
         
-        # TTL index - automatically delete expired sessions
         await collection.create_index(
             "expires_at",
             expireAfterSeconds=0,
@@ -199,9 +174,6 @@ class DatabaseClient:
         
         logger.info(f"✅ Created indexes for {self.SESSIONS_COLLECTION}")
     
-    # ========================================================================
-    # DATABASE UTILITIES
-    # ========================================================================
     
     async def get_database_stats(self) -> Dict[str, Any]:
         """
@@ -257,9 +229,6 @@ class DatabaseClient:
         collections = await db.list_collection_names()
         return collections
 
-    # ========================================================================
-    # COLLECTION VALIDATION
-    # ========================================================================
     
     async def create_collection_validators(self) -> None:
         """
@@ -269,7 +238,6 @@ class DatabaseClient:
         """
         db = mongodb_manager.get_database()
         
-        # User collection validator
         user_validator = {
             "$jsonSchema": {
                 "bsonType": "object",
@@ -307,19 +275,16 @@ class DatabaseClient:
             }
         }
         
-        # Apply validator to users collection
         try:
             await db.command({
                 "collMod": self.USERS_COLLECTION,
                 "validator": user_validator,
-                "validationLevel": "moderate"  # moderate allows updates to existing docs
+                "validationLevel": "moderate"
             })
             logger.info(f"✅ Applied schema validator to {self.USERS_COLLECTION}")
         except Exception as e:
-            # Collection might not exist yet, that's okay
             logger.debug(f"Could not apply validator to {self.USERS_COLLECTION}: {e}")
 
-        # Decision collection validator
         decision_validator = {
     "$jsonSchema": {
         "bsonType": "object",
@@ -385,5 +350,4 @@ class DatabaseClient:
         
         return result
 
-# Global database client instance
 db_client = DatabaseClient()

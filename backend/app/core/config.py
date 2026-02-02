@@ -29,51 +29,32 @@ class Settings(BaseSettings):
     Pydantic validates types and required fields automatically.
     """
     
-    # ========================================================================
-    # APPLICATION
-    # ========================================================================
     APP_NAME: str = "RAG Decision Agent"
     APP_VERSION: str = "1.0.0"
     ENVIRONMENT: str = Field(default="development")
     DEBUG: bool = Field(default=False)
     
-    # ========================================================================
-    # API SERVER
-    # ========================================================================
     API_HOST: str = Field(default="0.0.0.0")
     API_PORT: int = Field(default=8000)
     API_WORKERS: int = Field(default=4)
     
-    # ========================================================================
-    # SECURITY
-    # ========================================================================
-    SECRET_KEY: str = Field(..., min_length=32)  # Required, min 32 chars
-    JWT_SECRET_KEY: str = Field(..., min_length=32)  # Required
+    SECRET_KEY: str = Field(..., min_length=32)
+    JWT_SECRET_KEY: str = Field(..., min_length=32)
     JWT_ALGORITHM: str = Field(default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
     
-    # ========================================================================
-    # LLM PROVIDERS
-    # ========================================================================
     OPENAI_API_KEY: Optional[str] = Field(default=None)
     GROQ_API_KEY: Optional[str] = Field(default=None)
     
-    # Model configurations
     DEFAULT_LLM_MODEL: str = Field(default="gpt-4")
     DEFAULT_EMBEDDING_MODEL: str = Field(default="text-embedding-3-small")
     
-    # ========================================================================
-    # RAG & SEARCH
-    # ========================================================================
     TAVILY_API_KEY: Optional[str] = Field(default=None)
     EMBEDDING_MODEL: str = Field(
         default="sentence-transformers/all-MiniLM-L6-v2"
     )
     EMBEDDING_DIMENSION: int = Field(default=384)
     
-    # ========================================================================
-    # DATABASES
-    # ========================================================================
     MONGODB_URL: str = Field(default="mongodb://localhost:27017")
     MONGODB_DB_NAME: str = Field(default="rag_decision_agent")
     MONGODB_MAX_POOL_SIZE: int = Field(default=10)
@@ -85,9 +66,6 @@ class Settings(BaseSettings):
     REDIS_MAX_CONNECTIONS: int = Field(default=50)
     REDIS_DECODE_RESPONSES: bool = Field(default=True)
     
-    # ========================================================================
-    # CLOUD STORAGE
-    # ========================================================================
     R2_ACCOUNT_ID: Optional[str] = Field(default=None)
     R2_ACCESS_KEY_ID: Optional[str] = Field(default=None)
     R2_SECRET_ACCESS_KEY: Optional[str] = Field(default=None)
@@ -95,9 +73,6 @@ class Settings(BaseSettings):
     R2_ENDPOINT_URL: Optional[str] = Field(default=None)
     R2_PUBLIC_URL: Optional[str] = Field(default=None)
     
-    # ========================================================================
-    # OBSERVABILITY
-    # ========================================================================
     LANGCHAIN_TRACING_V2: bool = Field(default=False)
     LANGCHAIN_ENDPOINT: str = Field(
         default="https://api.smith.langchain.com"
@@ -105,9 +80,6 @@ class Settings(BaseSettings):
     LANGCHAIN_API_KEY: Optional[str] = Field(default=None)
     LANGCHAIN_PROJECT: str = Field(default="rag-decision-agent")
     
-    # ========================================================================
-    # CORS
-    # ========================================================================
     CORS_ORIGINS: str = Field(
         default='["http://localhost:5173","http://localhost:3000"]'
     )
@@ -119,40 +91,27 @@ class Settings(BaseSettings):
             return json.loads(v)
         return v
     
-    # ========================================================================
-    # FEATURE FLAGS
-    # ========================================================================
     ENABLE_CACHING: bool = Field(default=False)
     ENABLE_WEB_SEARCH: bool = Field(default=False)
     ENABLE_VERIFICATION: bool = Field(default=False)
     ENABLE_CONFIDENCE_SCORING: bool = Field(default=True)
     
-    # ========================================================================
-    # PERFORMANCE
-    # ========================================================================
     MAX_TOKENS: int = Field(default=4096)
     TEMPERATURE: float = Field(default=0.7, ge=0.0, le=2.0)
     TOP_K_RETRIEVAL: int = Field(default=10, ge=1, le=100)
     CHUNK_SIZE: int = Field(default=1000, ge=100, le=10000)
     CHUNK_OVERLAP: int = Field(default=200, ge=0, le=1000)
     
-    # Request limits
     MAX_UPLOAD_SIZE_MB: int = Field(default=10)
     RATE_LIMIT_PER_MINUTE: int = Field(default=60)
     
-    # ========================================================================
-    # PYDANTIC CONFIGURATION
-    # ========================================================================
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
-        extra="ignore"  # Ignore extra fields in .env
+        extra="ignore"
     )
     
-    # ========================================================================
-    # COMPUTED PROPERTIES
-    # ========================================================================
     
     @property
     def is_development(self) -> bool:
@@ -184,8 +143,6 @@ class Settings(BaseSettings):
             str: Complete Redis connection URL
         """
         if self.REDIS_PASSWORD:
-            # Extract host and port from URL
-            # Format: redis://localhost:6379/0
             parts = self.REDIS_URL.replace("redis://", "").split("/")
             host_port = parts[0]
             db = parts[1] if len(parts) > 1 else "0"
@@ -227,9 +184,6 @@ class Settings(BaseSettings):
         """Check if LangSmith is configured"""
         return self.LANGCHAIN_TRACING_V2 and bool(self.LANGCHAIN_API_KEY)
     
-    # ========================================================================
-    # VALIDATION METHODS
-    # ========================================================================
     
     def validate_required_for_production(self) -> List[str]:
         """
@@ -243,21 +197,17 @@ class Settings(BaseSettings):
         
         missing = []
         
-        # Security
         if len(self.SECRET_KEY) < 32:
             missing.append("SECRET_KEY must be at least 32 characters")
         if len(self.JWT_SECRET_KEY) < 32:
             missing.append("JWT_SECRET_KEY must be at least 32 characters")
         
-        # LLM Provider (at least one required)
         if not self.openai_configured and not self.anthropic_configured:
             missing.append("At least one LLM provider (OpenAI or Anthropic) must be configured")
         
-        # Database
         if "localhost" in self.MONGODB_URL:
             missing.append("Production should not use localhost MongoDB")
         
-        # Cloud storage
         if not self.r2_configured:
             missing.append("Cloudflare R2 must be fully configured for production")
         
@@ -305,7 +255,6 @@ class Settings(BaseSettings):
         """
         config = self.model_dump()
         
-        # Mask sensitive fields
         sensitive_fields = [
             "SECRET_KEY",
             "JWT_SECRET_KEY",
@@ -392,13 +341,9 @@ def get_settings() -> Settings:
     return Settings()
 
 
-# Convenience: Create a global settings instance
 settings = get_settings()
 
 
-# ============================================================================
-# CONFIGURATION VALIDATION ON IMPORT
-# ============================================================================
 
 def validate_configuration():
     """
@@ -414,12 +359,9 @@ def validate_configuration():
             raise ValueError(error_msg)
 
 
-# Run validation on import (will only raise in production)
 try:
     validate_configuration()
 except ValueError as e:
-    # In production, this should crash the application
-    # In development, we just warn
     if settings.is_production:
         raise
     else:

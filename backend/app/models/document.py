@@ -14,9 +14,6 @@ from bson import ObjectId
 from app.models.user import PyObjectId
 
 
-# ============================================================================
-# ENUMS
-# ============================================================================
 
 class DocumentStatus(str, Enum):
     """Document processing status"""
@@ -35,32 +32,25 @@ class DocumentType(str, Enum):
     XLSX = "xlsx"
 
 
-# ============================================================================
-# DATABASE MODEL
-# ============================================================================
 
 class DocumentInDB(BaseModel):
     """Document metadata in database"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     user_id: str = Field(..., description="User who uploaded the document")
     
-    # File information
     filename: str = Field(..., description="Original filename")
     file_type: DocumentType = Field(..., description="File type")
     file_size_bytes: int = Field(..., description="File size in bytes")
     file_hash: str = Field(..., description="SHA256 hash of file")
     storage_path: str = Field(..., description="Path in cloud storage (R2)")
     
-    # Processing
     status: DocumentStatus = Field(default=DocumentStatus.PENDING)
     chunk_count: Optional[int] = Field(default=None, description="Number of chunks created")
     processing_error: Optional[str] = Field(default=None, description="Error message if failed")
     
-    # Timestamps
     uploaded_at: datetime = Field(default_factory=datetime.utcnow)
     processed_at: Optional[datetime] = Field(default=None)
     
-    # Metadata
     metadata: dict = Field(default_factory=dict)
     
     model_config = {
@@ -70,9 +60,6 @@ class DocumentInDB(BaseModel):
     }
 
 
-# ============================================================================
-# RESPONSE MODEL
-# ============================================================================
 
 class Document(BaseModel):
     """Document response model"""

@@ -131,3 +131,6 @@ flake8==7.0.0
 isort==5.13.2
 mypy==1.9.0
 pre-commit==3.7.0
+
+
+# aioboto3==12.3.0

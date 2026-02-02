@@ -14,19 +14,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.routes import health, debug,admin_cache, auth
+from app.api.routes import health, debug,admin_cache, auth,documents
 from app.core.logging_config import setup_logging,get_logger
 from app.api.dependencies.logging import RequestLoggingMiddleware
-# from app.services.database.mongodb import mongodb_manager
 from app.services.database import initialize_database,close_database
 from app.services.database.redis_manager import redis_manager
 
-# Initialize logger
 logger = get_logger(__name__)
 
-# ============================================================================
-# APPLICATION LIFESPAN MANAGEMENT
-# ============================================================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
@@ -35,9 +30,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     Handles startup and shutdown events for the application.
     """
 
-    # ========================================================================
-    # STARTUP
-    # ========================================================================
 
     setup_logging()
 
@@ -58,7 +50,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     logger.info("   Verification: %s", "ENABLED" if settings.ENABLE_VERIFICATION else "DISABLED")
     logger.info("   Confidence Scoring: %s", "ENABLED" if settings.ENABLE_CONFIDENCE_SCORING else "DISABLED")
 
-    # Initialize MongoDB
     try:
         await initialize_database()
         logger.info("✅ Database initialized successfully")
@@ -82,9 +73,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     yield
 
-    # ========================================================================
-    # SHUTDOWN
-    # ========================================================================
 
     logger.info("=" * 70)
     logger.info("🛑 Shutting down application...")
@@ -107,9 +95,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     logger.info("=" * 70)
 
 
-# ============================================================================
-# FASTAPI APPLICATION
-# ============================================================================
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -133,9 +118,6 @@ app = FastAPI(
     ],
 )
 
-# ============================================================================
-# CORS CONFIGURATION
-# ============================================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -159,17 +141,14 @@ app.add_middleware(RequestLoggingMiddleware)
 
 
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
-# AUTHENTICATION ROUTES
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
 
 if settings.is_development:
     app.include_router(debug.router, prefix="/api/v1/debug", tags=["debug"])
     app.include_router(admin_cache.router, prefix="/api/v1/admin/cache", tags=["admin-cache"])
 
 
-# ============================================================================
-# ROOT ENDPOINT
-# ============================================================================
 
 @app.get("/", summary="Root endpoint", tags=["health"])
 async def root():
@@ -184,9 +163,6 @@ async def root():
     }
 
 
-# ============================================================================
-# CORS TEST ENDPOINT
-# ============================================================================
 
 @app.get("/cors-test", summary="CORS test endpoint", tags=["health"])
 async def cors_test():
@@ -197,9 +173,6 @@ async def cors_test():
     }
 
 
-# ============================================================================
-# APPLICATION ENTRY POINT
-# ============================================================================
 
 if __name__ == "__main__":
     import uvicorn
